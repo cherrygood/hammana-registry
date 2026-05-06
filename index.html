@@ -8,6 +8,16 @@
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<script>
+// Fallback if CDN fails
+window.addEventListener('load', function() {
+  if (typeof Chart === 'undefined') {
+    var s = document.createElement('script');
+    s.src = 'https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js';
+    document.head.appendChild(s);
+  }
+});
+</script>
 <style>
 :root{
   --gold:#C9A84C;--gold-light:#E8C97A;--dark:#0F1A14;--dark2:#1A2B20;
@@ -275,10 +285,10 @@ tr:hover td{background:#f9f6f0}
         <div class="kpi"><div class="kpi-l">Active Listings</div><div class="kpi-v" id="k-list">0</div><div class="kpi-s">For sale or rent</div></div>
       </div>
       <div class="charts-row">
-        <div class="card"><div class="ct">Plot Size Distribution <small>Area buckets (m²)</small></div><div class="ch-wrap"><canvas id="c1"></canvas></div></div>
-        <div class="card"><div class="ct">Zone Breakdown <small>By count</small></div><div class="ch-wrap"><canvas id="c2"></canvas></div></div>
+        <div class="card"><div class="ct">Plot Size Distribution <small>Area buckets (m²)</small></div><div class="ch-wrap" style="position:relative;height:200px;width:100%"><canvas id="c1" style="display:block"></canvas></div></div>
+        <div class="card"><div class="ct">Zone Breakdown <small>By count</small></div><div class="ch-wrap" style="position:relative;height:200px;width:100%"><canvas id="c2" style="display:block"></canvas></div></div>
       </div>
-      <div class="card"><div class="ct">Plots by Map Section <small>خريطة distribution</small></div><div class="ch-wrap-sm"><canvas id="c3"></canvas></div></div>
+      <div class="card"><div class="ct">Plots by Map Section <small>خريطة distribution</small></div><div class="ch-wrap-sm" style="position:relative;height:155px;width:100%"><canvas id="c3" style="display:block"></canvas></div></div>
       <div class="card"><div class="ct" style="margin-bottom:.75rem">Official Zoning Legend</div><div class="zleg" id="zleg"></div></div>
     </div>
   </div>
@@ -665,7 +675,7 @@ async function loadAll() {
   renderListings()
   buildZLegend()
   // Delay chart render to ensure canvases are visible and sized
-  setTimeout(renderDash, 300)
+  setTimeout(()=>{ requestAnimationFrame(renderDash) }, 800)
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -685,6 +695,9 @@ function sv(name, btn) {
 // DASHBOARD
 // ═══════════════════════════════════════════════════════════
 function renderDash() {
+  // Force canvas containers to have explicit pixel heights before drawing
+  document.querySelectorAll('.ch-wrap').forEach(el=>{ el.style.height='200px' })
+  document.querySelectorAll('.ch-wrap-sm').forEach(el=>{ el.style.height='155px' })
   const n = plots.length
   const area = plots.reduce((s,p)=>s+(p.area_m2||0),0)
   const avg  = n ? Math.round(area/n) : 0
