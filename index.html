@@ -520,24 +520,28 @@ async function patch(path, body) {
 }
 
 async function getAllPlots() {
-  // Fetch all plots in batches of 1000
-  let all=[], from=0
-  while(true) {
-    const r = await fetch(REST+'/plots?select=*&order=plot_no&offset='+from+'&limit=1000', {
-      headers: {...hdr(), 'Prefer':'count=exact'}
-    })
-    const batch = await r.json()
-    if (!Array.isArray(batch) || !batch.length) break
-    all = [...all, ...batch]
-    from += 1000
-    // Check if we have everything
-    const cr = r.headers.get('Content-Range')
-    if (cr) {
-      const total = parseInt(cr.split('/')[1])
-      if (all.length >= total) break
-    }
-    if (batch.length < 1000) break
+  // First get total count
+  const cr = await fetch(REST+'/plots?select=plot_no&limit=1', {
+    headers: {...hdr(), 'Prefer':'count=exact', 'Range-Unit':'items', 'Range':'0-0'}
+  })
+  const crh = cr.headers.get('Content-Range') || ''
+  const total = crh.includes('/') ? parseInt(crh.split('/')[1]) : 5000
+  console.log('Total plots in DB:', total)
+
+  // Fetch all in parallel batches of 500
+  const batchSize = 500
+  const batches = []
+  for (let from=0; from<total; from+=batchSize) {
+    batches.push(
+      fetch(REST+'/plots?select=*&order=plot_no&offset='+from+'&limit='+batchSize, {headers:hdr()})
+        .then(r=>r.json())
+        .then(d=>Array.isArray(d)?d:[])
+        .catch(()=>[])
+    )
   }
+  const results = await Promise.all(batches)
+  const all = results.flat()
+  console.log('Plots loaded:', all.length, '/', total)
   return all
 }
 
