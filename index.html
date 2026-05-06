@@ -661,10 +661,11 @@ async function loadAll() {
   const ld = await get('/listings?select=*&is_active=eq.true&order=created_at.desc')
   listings = ld
   
-  renderDash()
   renderReg()
   renderListings()
   buildZLegend()
+  // Delay chart render to ensure canvases are visible and sized
+  setTimeout(renderDash, 300)
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -696,6 +697,14 @@ function renderDash() {
 
   // Destroy old charts
   ['c1','c2','c3'].forEach(id=>{ const ch=Chart.getChart(id); if(ch) ch.destroy() })
+  // Ensure KPI numbers show immediately
+  const n = plots.length
+  const area = plots.reduce((s,p)=>s+(p.area_m2||0),0)
+  document.getElementById('k-total').textContent = n.toLocaleString()
+  document.getElementById('k-area').textContent  = Math.round(area/10000).toLocaleString()+' ha'
+  document.getElementById('k-area-s').textContent = area.toLocaleString()+' m² total'
+  document.getElementById('k-avg').textContent   = (n?Math.round(area/n):0).toLocaleString()+' m²'
+  document.getElementById('k-list').textContent  = listings.length
 
   // Size distribution
   const bk=[0,0,0,0,0,0]
