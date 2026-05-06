@@ -520,29 +520,22 @@ async function patch(path, body) {
 }
 
 async function getAllPlots() {
-  // First get total count
-  const cr = await fetch(REST+'/plots?select=plot_no&limit=1', {
-    headers: {...hdr(), 'Prefer':'count=exact', 'Range-Unit':'items', 'Range':'0-0'}
-  })
-  const crh = cr.headers.get('Content-Range') || ''
-  const total = crh.includes('/') ? parseInt(crh.split('/')[1]) : 5000
-  console.log('Total plots in DB:', total)
-
-  // Fetch all in parallel batches of 500
-  const batchSize = 500
-  const batches = []
-  for (let from=0; from<total; from+=batchSize) {
-    batches.push(
-      fetch(REST+'/plots?select=*&order=plot_no&offset='+from+'&limit='+batchSize, {headers:hdr()})
-        .then(r=>r.json())
-        .then(d=>Array.isArray(d)?d:[])
-        .catch(()=>[])
-    )
-  }
+  // Fetch 4 batches of 1000 in parallel (covers up to 4000 plots)
+  // Supabase max rows is now 10000 but we batch to be safe
+  const offsets = [0, 1000, 2000, 3000]
+  const batches = offsets.map(from =>
+    fetch(REST+'/plots?select=*&order=plot_no&offset='+from+'&limit=1000', {headers:hdr()})
+      .then(r=>r.json())
+      .then(d=>Array.isArray(d)?d:[])
+      .catch(()=>[])
+  )
   const results = await Promise.all(batches)
-  const all = results.flat()
-  console.log('Plots loaded:', all.length, '/', total)
-  return all
+  const all = results.flat().filter(p=>p&&p.plot_no)
+  // Remove any duplicates by plot_no
+  const seen = new Set()
+  const unique = all.filter(p=>{ if(seen.has(p.plot_no)) return false; seen.add(p.plot_no); return true })
+  console.log('Total plots loaded:', unique.length)
+  return unique
 }
 
 // ═══════════════════════════════════════════════════════════
